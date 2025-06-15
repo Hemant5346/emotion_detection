@@ -1,5 +1,4 @@
-torch==2.1.2
-timm==0.9.12
+onnxruntime==1.17.1        # or latest compatible version
 fastapi==0.110.0
 uvicorn==0.29.0
 pillow==10.3.0
@@ -7,3 +6,5 @@ opencv-python-headless==4.9.0.80
 mediapipe==0.10.9
 numpy<2.0
 python-multipart
+torch==2.1.2                # Optional: only if you still need torch for something else
+timm==0.9.12                # Optional: only if you're still using timm elsewhere

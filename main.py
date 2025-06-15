@@ -20,7 +20,7 @@ app.add_middleware(
 )
 
 # Load model once on startup
-model = EmotionClassifier(model_path="best_emotion_model.pt")
+model = EmotionClassifier(model_path="emotion_model3_clean.onnx")
 
 @app.post("/predict", summary="Predict emotion from image")
 async def predict_emotion(file: UploadFile = File(...)):
