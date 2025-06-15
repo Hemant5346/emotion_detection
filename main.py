@@ -7,7 +7,7 @@ from inference import EmotionClassifier
 
 app = FastAPI(
     title="Emotion Classifier with Face Detection",
-    description="Detects faces and classifies facial emotions using ConvNeXt-Tiny.",
+    description="Detects faces and classifies facial emotions using ConvNeXt-Tiny (TFLite).",
     version="1.0.0"
 )
 
@@ -20,7 +20,7 @@ app.add_middleware(
 )
 
 # Load model once on startup
-model = EmotionClassifier(model_path="emotion_model3_clean.onnx")
+model = EmotionClassifier(model_path="emotion_model3_clean_float32.tflite")
 
 @app.post("/predict", summary="Predict emotion from image")
 async def predict_emotion(file: UploadFile = File(...)):

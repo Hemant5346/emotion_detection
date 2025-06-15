@@ -1,28 +1,17 @@
-import torch
-import torch.nn as nn
-import timm
-import torchvision.transforms as T
-from PIL import Image
 import numpy as np
 import cv2
+from PIL import Image
 import mediapipe as mp
-import onnxruntime as ort
-
-class CustomEmotionModel(nn.Module):
-    """Custom model wrapper that matches the training architecture"""
-    def __init__(self, model_name: str = "convnext_tiny", num_classes: int = 4):
-        super().__init__()
-        self.backbone = timm.create_model(model_name, pretrained=False, num_classes=0)  # num_classes=0 removes the head
-        self.classifier = nn.Linear(self.backbone.num_features, num_classes)
-    
-    def forward(self, x):
-        features = self.backbone(x)
-        return self.classifier(features)
+import tensorflow as tf
+import torchvision.transforms as T
 
 class EmotionClassifier:
     def __init__(self, model_path: str, class_names=None):
-        self.session = ort.InferenceSession(model_path)
-        self.input_name = self.session.get_inputs()[0].name
+        self.interpreter = tf.lite.Interpreter(model_path=model_path)
+        self.interpreter.allocate_tensors()
+
+        self.input_details = self.interpreter.get_input_details()
+        self.output_details = self.interpreter.get_output_details()
 
         self.class_names = class_names or ['angry', 'happy', 'neutral', 'sad']
 
@@ -30,7 +19,7 @@ class EmotionClassifier:
             T.Resize((224, 224)),
             T.ToTensor(),
             T.Lambda(lambda x: x.expand(3, -1, -1) if x.shape[0] == 1 else x),
-            T.Normalize([0.5]*3, [0.5]*3)
+            T.Normalize([0.5] * 3, [0.5] * 3)
         ])
 
         self.face_detector = mp.solutions.face_detection.FaceDetection(
@@ -65,11 +54,19 @@ class EmotionClassifier:
         if face is None:
             return {"error": "No face detected."}
 
-        image_tensor = self.transform(face).unsqueeze(0).numpy()
+        face_resized = face.resize((224, 224))
+        image_np = np.array(face_resized).astype(np.float32) / 255.0
+        image_np = (image_np - 0.5) / 0.5  # Normalize to [-1, 1]
+        image_tensor = np.expand_dims(image_np, axis=0).astype(np.float32)  # Shape: [1, 224, 224, 3]
 
-        # Run inference
-        outputs = self.session.run(None, {self.input_name: image_tensor.astype(np.float32)})
-        probs = outputs[0][0]
+        input_index = self.input_details[0]['index']
+        self.interpreter.set_tensor(input_index, image_tensor)
+        self.interpreter.invoke()
+
+        output_index = self.output_details[0]['index']
+        output = self.interpreter.get_tensor(output_index)[0]
+        probs = tf.nn.softmax(output).numpy()
+
         pred_idx = int(np.argmax(probs))
         confidence = float(probs[pred_idx])
 
